@@ -4,11 +4,11 @@ const API_KEY = Deno.env.get("ODDS_API");
 
 const SPORTS = [
   'soccer_uefa_european_championship',
-  'soccer_epl', // Английская премьер-лига 
-  'soccer_spain_la_liga', // Ла Лига
-  'soccer_germany_bundesliga', // Бундеслига
-  'icehockey_nhl', // NHL
-  'mma_mixed_martial_arts' // MMA
+  'soccer_epl',
+  'soccer_spain_la_liga', 
+  'soccer_germany_bundesliga',
+  'icehockey_nhl',
+  'mma_mixed_martial_arts'
 ];
 const MARKETS = 'h2h,spreads,totals';
 const REGIONS = 'us';
@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
 
   try {
     if (!API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-      throw new Error("Необходимые секреты не установлены (ODDS_API, SUPABASE_URL, SERVICE_ROLE)");
+      throw new Error("Необходимые секреты не установлены");
     }
     
     let allEventsData = [];
@@ -90,6 +90,7 @@ Deno.serve(async (req) => {
 
     const eventsToInsert = allEventsData.map(event => {
       let bestH2H = null, bestSpreads = null, bestTotals = null;
+      
       for (const bookmaker of event.bookmakers) {
         if (bookmaker.markets) {
           for (const market of bookmaker.markets) {
@@ -140,21 +141,24 @@ Deno.serve(async (req) => {
       };
     }).filter(e => e.home_odds && e.away_odds);
 
+    // Удаляем старые события
     await supabaseRequest('/events?status=eq.scheduled', 'DELETE');
+
+    // Вставляем новые события
     await supabaseRequest('/events', 'POST', eventsToInsert);
 
     const message = `✅ Успешно обновлено ${eventsToInsert.length} событий.`;
-    
+
     return new Response(JSON.stringify({ message: message }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (e) {
+    console.error('Ошибка:', e.message);
     return new Response(JSON.stringify({ error: e.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
-
